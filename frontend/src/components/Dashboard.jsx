@@ -1,28 +1,27 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, Legend
-} from 'recharts';
 
 const Dashboard = () => {
   const [summary, setSummary] = useState(null);
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [summaryData, productsData, ordersData] = await Promise.all([
+        const [summaryData, productsData, ordersData, customersData] = await Promise.all([
           api.get('/summary'),
-          api.get('/products?limit=10'),
-          api.get('/orders?limit=30')
+          api.get('/products?limit=1000'),
+          api.get('/orders?limit=1000'),
+          api.get('/customers?limit=1000')
         ]);
         setSummary(summaryData);
         setProducts(productsData);
         setOrders(ordersData);
+        setCustomers(customersData);
       } catch (err) {
         setError('Failed to load dashboard data');
       } finally {
@@ -35,20 +34,36 @@ const Dashboard = () => {
   if (loading) return <div style={{padding: '40px', fontWeight: 'bold'}}>LOADING SYS_DATA...</div>;
   if (error) return <div className="alert alert-error">ERR: {error}</div>;
 
-  // Process data for charts
-  const inventoryChartData = products.map(p => ({
-    name: p.sku,
-    quantity: p.quantity,
-    value: p.price * p.quantity
-  }));
+  const inventoryValue = products.reduce((acc, p) => acc + (p.price * p.quantity), 0);
+  const lowStockProducts = products.filter(p => p.quantity < 10).slice(0, 5);
+  
+  // Top Selling Products
+  const productSales = {};
+  orders.forEach(o => {
+    (o.items || []).forEach(item => {
+      productSales[item.product_id] = (productSales[item.product_id] || 0) + item.quantity;
+    });
+  });
+  const topSellingProducts = Object.entries(productSales)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([id, qty]) => {
+      const p = products.find(p => p.id === parseInt(id));
+      return { name: p ? p.name : `Product #${id}`, sold: qty };
+    });
 
-  const orderTrendData = orders.map(o => {
-    const date = new Date(o.created_at);
-    return {
-      date: `${date.getMonth() + 1}/${date.getDate()}`,
-      amount: o.total_amount
-    };
-  }).reverse(); // chronological
+  // Customer Report (Customers with most orders)
+  const customerOrderCount = {};
+  orders.forEach(o => {
+    customerOrderCount[o.customer_id] = (customerOrderCount[o.customer_id] || 0) + 1;
+  });
+  const topCustomers = Object.entries(customerOrderCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([id, count]) => {
+      const c = customers.find(c => c.id === parseInt(id));
+      return { name: c ? c.name : `Customer #${id}`, orders: count };
+    });
 
   return (
     <div>
@@ -58,53 +73,88 @@ const Dashboard = () => {
       
       <div className="dashboard-grid">
         <div className="card stat-card">
-          <h3>Total Assets</h3>
+          <h3>Total Products</h3>
           <p>{summary?.total_products}</p>
         </div>
         <div className="card stat-card">
-          <h3>Client Base</h3>
+          <h3>Total Orders</h3>
+          <p>{summary?.total_orders}</p>
+        </div>
+        <div className="card stat-card">
+          <h3>Total Customers</h3>
           <p>{summary?.total_customers}</p>
         </div>
         <div className="card stat-card">
-          <h3>Fulfilled Orders</h3>
-          <p>{summary?.total_orders}</p>
-        </div>
-        <div className="card stat-card" style={summary?.low_stock_products > 0 ? {backgroundColor: 'var(--accent)', color: '#fff'} : {}}>
-          <h3 style={summary?.low_stock_products > 0 ? {color: '#fff', borderBottomColor: '#fff'} : {}}>Critical Stock</h3>
-          <p>{summary?.low_stock_products}</p>
+          <h3>Inventory Value</h3>
+          <p>₹{inventoryValue.toFixed(2)}</p>
         </div>
       </div>
 
-      <div className="chart-grid">
-        <div className="card">
-          <h3 style={{marginTop: 0, textTransform: 'uppercase', marginBottom: '20px'}}>Inventory Levels (Top 10)</h3>
-          <div style={{ width: '100%', height: 300 }}>
-            <ResponsiveContainer>
-              <BarChart data={inventoryChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ccc" />
-                <XAxis dataKey="name" tick={{fontFamily: 'Space Mono', fontSize: 12}} />
-                <YAxis tick={{fontFamily: 'Space Mono', fontSize: 12}} />
-                <Tooltip contentStyle={{fontFamily: 'Space Mono', borderRadius: 0, border: '2px solid #111'}} />
-                <Bar dataKey="quantity" fill="#111" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+      <div className="chart-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', marginTop: '20px' }}>
+        <div className="card" style={{ padding: '20px' }}>
+          <h3 style={{marginTop: 0, textTransform: 'uppercase', marginBottom: '20px'}}>Low Stock Products</h3>
+          {lowStockProducts.length === 0 ? <p>No low stock products.</p> : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Quantity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lowStockProducts.map(p => (
+                  <tr key={p.id}>
+                    <td>{p.name}</td>
+                    <td style={{color: 'red', fontWeight: 'bold'}}>{p.quantity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
-        <div className="card">
-          <h3 style={{marginTop: 0, textTransform: 'uppercase', marginBottom: '20px'}}>Revenue Timeline</h3>
-          <div style={{ width: '100%', height: 300 }}>
-            <ResponsiveContainer>
-              <LineChart data={orderTrendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ccc" />
-                <XAxis dataKey="date" tick={{fontFamily: 'Space Mono', fontSize: 12}} />
-                <YAxis tick={{fontFamily: 'Space Mono', fontSize: 12}} />
-                <Tooltip contentStyle={{fontFamily: 'Space Mono', borderRadius: 0, border: '2px solid #111'}} />
-                <Legend wrapperStyle={{fontFamily: 'Space Mono'}}/>
-                <Line type="monotone" dataKey="amount" stroke="#FF3300" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+        <div className="card" style={{ padding: '20px' }}>
+          <h3 style={{marginTop: 0, textTransform: 'uppercase', marginBottom: '20px'}}>Top Selling Products</h3>
+          {topSellingProducts.length === 0 ? <p>No sales yet.</p> : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Units Sold</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topSellingProducts.map((p, i) => (
+                  <tr key={i}>
+                    <td>{p.name}</td>
+                    <td>{p.sold}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div className="card" style={{ padding: '20px' }}>
+          <h3 style={{marginTop: 0, textTransform: 'uppercase', marginBottom: '20px'}}>Customer Report (Top Buyers)</h3>
+          {topCustomers.length === 0 ? <p>No customers with orders yet.</p> : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Total Orders</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topCustomers.map((c, i) => (
+                  <tr key={i}>
+                    <td>{c.name}</td>
+                    <td>{c.orders}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>
