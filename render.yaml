@@ -1,11 +1,9 @@
-services:
-  # The PostgreSQL Database
-  - type: psql
-    name: inventory-db
+databases:
+  - name: inventory-db
     plan: free
     region: ohio
 
-  # The FastAPI Backend
+services:
   - type: web
     name: inventory-backend
     env: python
