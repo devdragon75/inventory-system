@@ -1,8 +1,7 @@
-from pydantic import BaseModel
-from typing import List, Optional
+import re
 from datetime import datetime
-
-from pydantic import BaseModel, Field
+from typing import List, Optional
+from pydantic import BaseModel, Field, field_validator
 
 class ProductBase(BaseModel):
     name: str
@@ -18,9 +17,6 @@ class Product(ProductBase):
 
     class Config:
         from_attributes = True
-
-import re
-from pydantic import BaseModel, field_validator
 
 class CustomerBase(BaseModel):
     name: str
