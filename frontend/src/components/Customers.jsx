@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import api from '../api';
-import { Trash2 } from 'lucide-react';
+import { api } from '../api';
 
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
@@ -11,8 +10,8 @@ const Customers = () => {
 
   const fetchCustomers = async () => {
     try {
-      const res = await api.get('/customers');
-      setCustomers(res.data);
+      const data = await api.get('/customers');
+      setCustomers(data);
     } catch (err) {
       setError('Failed to fetch customers');
     } finally {
@@ -34,7 +33,7 @@ const Customers = () => {
       setFormData({ name: '', email: '', phone: '' });
       fetchCustomers();
     } catch (err) {
-      setError(err.response?.data?.detail || 'An error occurred');
+      setError(err.message || 'An error occurred');
     }
   };
 
@@ -51,48 +50,48 @@ const Customers = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-800">Customers</h1>
+    <div>
+      <h2>Customers</h2>
       
-      {error && <div className="bg-red-50 text-red-600 p-3 rounded">{error}</div>}
-      {success && <div className="bg-green-50 text-green-600 p-3 rounded">{success}</div>}
+      {error && <div className="alert alert-error">{error}</div>}
+      {success && <div className="alert alert-success">{success}</div>}
 
-      <div className="bg-white p-6 rounded-xl shadow-sm">
-        <h2 className="text-lg font-semibold mb-4">Add New Customer</h2>
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <input type="text" placeholder="Full Name" className="border p-2 rounded" required
+      <div className="card">
+        <h3>Add New Customer</h3>
+        <form onSubmit={handleSubmit} className="form-grid">
+          <input type="text" placeholder="Full Name" required
             value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-          <input type="email" placeholder="Email" className="border p-2 rounded" required
+          <input type="email" placeholder="Email" required
             value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-          <input type="tel" placeholder="Phone" className="border p-2 rounded" required
+          <input type="tel" placeholder="Phone" required
             value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
-          <div className="md:col-span-3">
-            <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+          <div style={{ gridColumn: '1 / -1' }}>
+            <button type="submit" style={{ background: '#28a745' }}>
               Add Customer
             </button>
           </div>
         </form>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 text-gray-600 text-sm">
+      <div className="card">
+        <table>
+          <thead>
             <tr>
-              <th className="p-4">Name</th>
-              <th className="p-4">Email</th>
-              <th className="p-4">Phone</th>
-              <th className="p-4 text-right">Actions</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y text-gray-800 text-sm">
-            {loading ? <tr><td colSpan="4" className="p-4 text-center">Loading...</td></tr> :
+          <tbody>
+            {loading ? <tr><td colSpan="4">Loading...</td></tr> :
               customers.map(c => (
               <tr key={c.id}>
-                <td className="p-4 font-medium">{c.name}</td>
-                <td className="p-4">{c.email}</td>
-                <td className="p-4">{c.phone}</td>
-                <td className="p-4 flex justify-end">
-                  <button onClick={() => handleDelete(c.id)} className="text-red-600 hover:bg-red-50 p-2 rounded"><Trash2 size={16}/></button>
+                <td>{c.name}</td>
+                <td>{c.email}</td>
+                <td>{c.phone}</td>
+                <td>
+                  <button onClick={() => handleDelete(c.id)} className="btn-danger">Delete</button>
                 </td>
               </tr>
             ))}

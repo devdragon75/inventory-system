@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import api from '../api';
-import { Trash2 } from 'lucide-react';
+import { api } from '../api';
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
@@ -16,14 +15,14 @@ const Orders = () => {
 
   const fetchData = async () => {
     try {
-      const [ordersRes, productsRes, custRes] = await Promise.all([
+      const [ordersData, productsData, custData] = await Promise.all([
         api.get('/orders'),
         api.get('/products'),
         api.get('/customers')
       ]);
-      setOrders(ordersRes.data);
-      setProducts(productsRes.data);
-      setCustomers(custRes.data);
+      setOrders(ordersData);
+      setProducts(productsData);
+      setCustomers(custData);
     } catch (err) {
       setError('Failed to fetch data');
     } finally {
@@ -68,7 +67,7 @@ const Orders = () => {
       setOrderItems([{ product_id: '', quantity: 1 }]);
       fetchData();
     } catch (err) {
-      setError(err.response?.data?.detail || 'An error occurred');
+      setError(err.message || 'An error occurred');
     }
   };
 
@@ -85,19 +84,18 @@ const Orders = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-800">Orders</h1>
+    <div>
+      <h2>Orders</h2>
       
-      {error && <div className="bg-red-50 text-red-600 p-3 rounded">{error}</div>}
-      {success && <div className="bg-green-50 text-green-600 p-3 rounded">{success}</div>}
+      {error && <div className="alert alert-error">{error}</div>}
+      {success && <div className="alert alert-success">{success}</div>}
 
-      <div className="bg-white p-6 rounded-xl shadow-sm">
-        <h2 className="text-lg font-semibold mb-4">Create New Order</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
-            <select className="border p-2 rounded w-full" required
-              value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)}>
+      <div className="card">
+        <h3>Create New Order</h3>
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '5px' }}>Customer</label>
+            <select required value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)}>
               <option value="">Select a Customer</option>
               {customers.map(c => (
                 <option key={c.id} value={c.id}>{c.name} ({c.email})</option>
@@ -105,58 +103,58 @@ const Orders = () => {
             </select>
           </div>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Order Items</label>
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '5px' }}>Order Items</label>
             {orderItems.map((item, index) => (
-              <div key={index} className="flex space-x-2 mb-2">
-                <select className="border p-2 rounded flex-1" required
+              <div key={index} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                <select required style={{ flex: 1 }}
                   value={item.product_id} onChange={e => handleItemChange(index, 'product_id', e.target.value)}>
                   <option value="">Select Product</option>
                   {products.map(p => (
-                    <option key={p.id} value={p.id}>{p.name} - ${p.price} ({p.quantity} in stock)</option>
+                    <option key={p.id} value={p.id}>{p.name} - ${Number(p.price).toFixed(2)} ({p.quantity} in stock)</option>
                   ))}
                 </select>
-                <input type="number" className="border p-2 rounded w-24" placeholder="Qty" required min="1"
+                <input type="number" placeholder="Qty" required min="1" style={{ width: '80px' }}
                   value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} />
                 {orderItems.length > 1 && (
-                  <button type="button" onClick={() => handleRemoveItem(index)} className="text-red-500 hover:bg-red-50 px-2 rounded">
-                    <Trash2 size={18} />
+                  <button type="button" onClick={() => handleRemoveItem(index)} className="btn-danger">
+                    X
                   </button>
                 )}
               </div>
             ))}
-            <button type="button" onClick={handleAddItem} className="text-blue-600 text-sm hover:underline font-medium">
+            <button type="button" onClick={handleAddItem} style={{ background: 'none', color: '#0056b3', border: 'none', padding: 0, textDecoration: 'underline' }}>
               + Add another product
             </button>
           </div>
 
-          <button type="submit" className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+          <button type="submit" style={{ background: '#6f42c1' }}>
             Create Order
           </button>
         </form>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 text-gray-600 text-sm">
+      <div className="card">
+        <table>
+          <thead>
             <tr>
-              <th className="p-4">Order ID</th>
-              <th className="p-4">Customer</th>
-              <th className="p-4">Total Amount</th>
-              <th className="p-4">Date</th>
-              <th className="p-4 text-right">Actions</th>
+              <th>Order ID</th>
+              <th>Customer</th>
+              <th>Total Amount</th>
+              <th>Date</th>
+              <th>Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y text-gray-800 text-sm">
-            {loading ? <tr><td colSpan="5" className="p-4 text-center">Loading...</td></tr> :
+          <tbody>
+            {loading ? <tr><td colSpan="5">Loading...</td></tr> :
               orders.map(o => (
               <tr key={o.id}>
-                <td className="p-4 font-medium">#{o.id}</td>
-                <td className="p-4">{customers.find(c => c.id === o.customer_id)?.name || 'Unknown'}</td>
-                <td className="p-4">${o.total_amount.toFixed(2)}</td>
-                <td className="p-4">{new Date(o.created_at).toLocaleDateString()}</td>
-                <td className="p-4 flex justify-end">
-                  <button onClick={() => handleDelete(o.id)} className="text-red-600 hover:bg-red-50 p-2 rounded"><Trash2 size={16}/></button>
+                <td><strong>#{o.id}</strong></td>
+                <td>{customers.find(c => c.id === o.customer_id)?.name || 'Unknown'}</td>
+                <td>${Number(o.total_amount).toFixed(2)}</td>
+                <td>{new Date(o.created_at).toLocaleDateString()}</td>
+                <td>
+                  <button onClick={() => handleDelete(o.id)} className="btn-danger">Delete</button>
                 </td>
               </tr>
             ))}

@@ -1,176 +1,284 @@
-from fastapi import FastAPI, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from typing import List
+from flask import Flask, request, jsonify
+from database import get_db_connection, init_db
+from psycopg2.extras import RealDictCursor
+import psycopg2
 
-import models, schemas, database
-from database import engine
+app = Flask(__name__)
 
-models.Base.metadata.create_all(bind=engine)
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
-app = FastAPI(title="Inventory & Order Management API")
-
-from fastapi.middleware.cors import CORSMiddleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+try:
+    init_db()
+except Exception as e:
+    print(f"Error initializing db: {e}")
 
 # --- Products ---
-@app.post("/products", response_model=schemas.Product, status_code=status.HTTP_201_CREATED)
-def create_product(product: schemas.ProductCreate, db: Session = Depends(database.get_db)):
-    db_product = db.query(models.Product).filter(models.Product.sku == product.sku).first()
-    if db_product:
-        raise HTTPException(status_code=400, detail="SKU already registered")
-    db_product = models.Product(**product.model_dump())
-    db.add(db_product)
-    db.commit()
-    db.refresh(db_product)
-    return db_product
-
-@app.get("/products", response_model=List[schemas.Product])
-def get_products(db: Session = Depends(database.get_db)):
-    return db.query(models.Product).all()
-
-@app.get("/products/{product_id}", response_model=schemas.Product)
-def get_product(product_id: int, db: Session = Depends(database.get_db)):
-    product = db.query(models.Product).filter(models.Product.id == product_id).first()
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return product
-
-@app.put("/products/{product_id}", response_model=schemas.Product)
-def update_product(product_id: int, product: schemas.ProductCreate, db: Session = Depends(database.get_db)):
-    db_product = db.query(models.Product).filter(models.Product.id == product_id).first()
-    if not db_product:
-        raise HTTPException(status_code=404, detail="Product not found")
+@app.route('/products', methods=['GET', 'POST'])
+def products():
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     
-    # Check SKU conflict
-    conflict = db.query(models.Product).filter(models.Product.sku == product.sku, models.Product.id != product_id).first()
-    if conflict:
-        raise HTTPException(status_code=400, detail="SKU already in use by another product")
+    if request.method == 'GET':
+        cur.execute("SELECT * FROM products ORDER BY id")
+        products = cur.fetchall()
+        cur.close()
+        conn.close()
+        return jsonify(products)
+        
+    if request.method == 'POST':
+        data = request.json
+        if not data or not all(k in data for k in ('name', 'sku', 'price', 'quantity')):
+            return jsonify({'detail': 'Missing fields'}), 400
+            
+        try:
+            cur.execute(
+                "INSERT INTO products (name, sku, price, quantity) VALUES (%s, %s, %s, %s) RETURNING *",
+                (data['name'], data['sku'], data['price'], data['quantity'])
+            )
+            new_product = cur.fetchone()
+            conn.commit()
+            return jsonify(new_product), 201
+        except psycopg2.IntegrityError:
+            conn.rollback()
+            return jsonify({'detail': 'SKU already registered'}), 400
+        finally:
+            cur.close()
+            conn.close()
 
-    for key, value in product.model_dump().items():
-        setattr(db_product, key, value)
-    db.commit()
-    db.refresh(db_product)
-    return db_product
-
-@app.delete("/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_product(product_id: int, db: Session = Depends(database.get_db)):
-    product = db.query(models.Product).filter(models.Product.id == product_id).first()
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    db.delete(product)
-    db.commit()
+@app.route('/products/<int:product_id>', methods=['GET', 'PUT', 'DELETE'])
+def product(product_id):
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    if request.method == 'GET':
+        cur.execute("SELECT * FROM products WHERE id = %s", (product_id,))
+        prod = cur.fetchone()
+        cur.close()
+        conn.close()
+        if not prod:
+            return jsonify({'detail': 'Product not found'}), 404
+        return jsonify(prod)
+        
+    if request.method == 'PUT':
+        data = request.json
+        try:
+            cur.execute(
+                "UPDATE products SET name = %s, sku = %s, price = %s, quantity = %s WHERE id = %s RETURNING *",
+                (data['name'], data['sku'], data['price'], data['quantity'], product_id)
+            )
+            updated = cur.fetchone()
+            if not updated:
+                return jsonify({'detail': 'Product not found'}), 404
+            conn.commit()
+            return jsonify(updated)
+        except psycopg2.IntegrityError:
+            conn.rollback()
+            return jsonify({'detail': 'SKU already in use by another product'}), 400
+        finally:
+            cur.close()
+            conn.close()
+            
+    if request.method == 'DELETE':
+        cur.execute("DELETE FROM products WHERE id = %s RETURNING id", (product_id,))
+        deleted = cur.fetchone()
+        conn.commit()
+        cur.close()
+        conn.close()
+        if not deleted:
+            return jsonify({'detail': 'Product not found'}), 404
+        return '', 204
 
 # --- Customers ---
-@app.post("/customers", response_model=schemas.Customer, status_code=status.HTTP_201_CREATED)
-def create_customer(customer: schemas.CustomerCreate, db: Session = Depends(database.get_db)):
-    db_customer = db.query(models.Customer).filter(models.Customer.email == customer.email).first()
-    if db_customer:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    db_customer = models.Customer(**customer.model_dump())
-    db.add(db_customer)
-    db.commit()
-    db.refresh(db_customer)
-    return db_customer
+@app.route('/customers', methods=['GET', 'POST'])
+def customers():
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    if request.method == 'GET':
+        cur.execute("SELECT * FROM customers ORDER BY id")
+        custs = cur.fetchall()
+        cur.close()
+        conn.close()
+        return jsonify(custs)
+        
+    if request.method == 'POST':
+        data = request.json
+        try:
+            cur.execute(
+                "INSERT INTO customers (name, email, phone) VALUES (%s, %s, %s) RETURNING *",
+                (data['name'], data['email'], data.get('phone'))
+            )
+            new_cust = cur.fetchone()
+            conn.commit()
+            return jsonify(new_cust), 201
+        except psycopg2.IntegrityError:
+            conn.rollback()
+            return jsonify({'detail': 'Email already registered'}), 400
+        finally:
+            cur.close()
+            conn.close()
 
-@app.get("/customers", response_model=List[schemas.Customer])
-def get_customers(db: Session = Depends(database.get_db)):
-    return db.query(models.Customer).all()
-
-@app.get("/customers/{customer_id}", response_model=schemas.Customer)
-def get_customer(customer_id: int, db: Session = Depends(database.get_db)):
-    customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
-    return customer
-
-@app.delete("/customers/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_customer(customer_id: int, db: Session = Depends(database.get_db)):
-    customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
-    db.delete(customer)
-    db.commit()
+@app.route('/customers/<int:customer_id>', methods=['GET', 'DELETE'])
+def customer(customer_id):
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    if request.method == 'GET':
+        cur.execute("SELECT * FROM customers WHERE id = %s", (customer_id,))
+        cust = cur.fetchone()
+        cur.close()
+        conn.close()
+        if not cust:
+            return jsonify({'detail': 'Customer not found'}), 404
+        return jsonify(cust)
+        
+    if request.method == 'DELETE':
+        cur.execute("DELETE FROM customers WHERE id = %s RETURNING id", (customer_id,))
+        deleted = cur.fetchone()
+        conn.commit()
+        cur.close()
+        conn.close()
+        if not deleted:
+            return jsonify({'detail': 'Customer not found'}), 404
+        return '', 204
 
 # --- Orders ---
-@app.post("/orders", response_model=schemas.Order, status_code=status.HTTP_201_CREATED)
-def create_order(order: schemas.OrderCreate, db: Session = Depends(database.get_db)):
-    customer = db.query(models.Customer).filter(models.Customer.id == order.customer_id).first()
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
+@app.route('/orders', methods=['GET', 'POST'])
+def orders():
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     
-    total_amount = 0.0
-    products_to_update = []
-
-    # Validate inventory first
-    for item in order.items:
-        product = db.query(models.Product).filter(models.Product.id == item.product_id).first()
-        if not product:
-            raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
-        if product.quantity < item.quantity:
-            raise HTTPException(status_code=400, detail=f"Insufficient inventory for product {product.name}")
+    if request.method == 'GET':
+        cur.execute("SELECT * FROM orders ORDER BY id DESC")
+        orders = cur.fetchall()
+        # Fetch items for orders? Simplest is just return orders here
+        cur.close()
+        conn.close()
+        return jsonify(orders)
         
-        total_amount += product.price * item.quantity
-        products_to_update.append((product, item.quantity))
+    if request.method == 'POST':
+        data = request.json
+        customer_id = data.get('customer_id')
+        items = data.get('items', [])
+        
+        if not customer_id or not items:
+            return jsonify({'detail': 'Invalid order data'}), 400
+            
+        cur.execute("SELECT id FROM customers WHERE id = %s", (customer_id,))
+        if not cur.fetchone():
+            cur.close()
+            conn.close()
+            return jsonify({'detail': 'Customer not found'}), 404
+            
+        total_amount = 0.0
+        products_to_update = []
+        
+        for item in items:
+            cur.execute("SELECT id, name, price, quantity FROM products WHERE id = %s", (item['product_id'],))
+            product = cur.fetchone()
+            if not product:
+                cur.close()
+                conn.close()
+                return jsonify({'detail': f"Product {item['product_id']} not found"}), 404
+                
+            if product['quantity'] < item['quantity']:
+                cur.close()
+                conn.close()
+                return jsonify({'detail': f"Insufficient inventory for {product['name']}"}), 400
+                
+            total_amount += float(product['price']) * item['quantity']
+            products_to_update.append((product['id'], item['quantity']))
+            
+        # Create order
+        cur.execute(
+            "INSERT INTO orders (customer_id, total_amount) VALUES (%s, %s) RETURNING *",
+            (customer_id, total_amount)
+        )
+        new_order = cur.fetchone()
+        
+        # Add items and update stock
+        for pid, qty in products_to_update:
+            cur.execute("INSERT INTO order_items (order_id, product_id, quantity) VALUES (%s, %s, %s)",
+                        (new_order['id'], pid, qty))
+            cur.execute("UPDATE products SET quantity = quantity - %s WHERE id = %s", (qty, pid))
+            
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify(new_order), 201
+
+@app.route('/orders/<int:order_id>', methods=['GET', 'DELETE'])
+def order_api(order_id):
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     
-    # Create order
-    db_order = models.Order(customer_id=order.customer_id, total_amount=total_amount)
-    db.add(db_order)
-    db.commit()
-    db.refresh(db_order)
+    if request.method == 'GET':
+        cur.execute("SELECT * FROM orders WHERE id = %s", (order_id,))
+        order = cur.fetchone()
+        if not order:
+            cur.close()
+            conn.close()
+            return jsonify({'detail': 'Order not found'}), 404
+            
+        cur.execute("SELECT * FROM order_items WHERE order_id = %s", (order_id,))
+        order['items'] = cur.fetchall()
+        cur.close()
+        conn.close()
+        return jsonify(order)
+        
+    if request.method == 'DELETE':
+        cur.execute("SELECT product_id, quantity FROM order_items WHERE order_id = %s", (order_id,))
+        items = cur.fetchall()
+        
+        cur.execute("DELETE FROM orders WHERE id = %s RETURNING id", (order_id,))
+        deleted = cur.fetchone()
+        if not deleted:
+            cur.close()
+            conn.close()
+            return jsonify({'detail': 'Order not found'}), 404
+            
+        # Restore stock
+        for item in items:
+            cur.execute("UPDATE products SET quantity = quantity + %s WHERE id = %s", 
+                        (item['quantity'], item['product_id']))
+                        
+        conn.commit()
+        cur.close()
+        conn.close()
+        return '', 204
 
-    # Process items and update inventory
-    for product, qty in products_to_update:
-        product.quantity -= qty
-        db_item = models.OrderItem(order_id=db_order.id, product_id=product.id, quantity=qty)
-        db.add(db_item)
+# --- Dashboard ---
+@app.route('/summary', methods=['GET'])
+def summary():
+    conn = get_db_connection()
+    cur = conn.cursor()
     
-    db.commit()
-    db.refresh(db_order)
-    return db_order
-
-@app.get("/orders", response_model=List[schemas.Order])
-def get_orders(db: Session = Depends(database.get_db)):
-    return db.query(models.Order).all()
-
-@app.get("/orders/{order_id}", response_model=schemas.Order)
-def get_order(order_id: int, db: Session = Depends(database.get_db)):
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    return order
-
-@app.delete("/orders/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_order(order_id: int, db: Session = Depends(database.get_db)):
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
+    cur.execute("SELECT COUNT(*) FROM products")
+    total_products = cur.fetchone()[0]
     
-    # Revert inventory
-    for item in order.items:
-        product = db.query(models.Product).filter(models.Product.id == item.product_id).first()
-        if product:
-            product.quantity += item.quantity
-
-    db.delete(order)
-    db.commit()
-
-# --- Dashboard Summary ---
-@app.get("/summary")
-def get_summary(db: Session = Depends(database.get_db)):
-    total_products = db.query(models.Product).count()
-    total_customers = db.query(models.Customer).count()
-    total_orders = db.query(models.Order).count()
-    low_stock = db.query(models.Product).filter(models.Product.quantity < 10).count()
-
-    return {
+    cur.execute("SELECT COUNT(*) FROM customers")
+    total_customers = cur.fetchone()[0]
+    
+    cur.execute("SELECT COUNT(*) FROM orders")
+    total_orders = cur.fetchone()[0]
+    
+    cur.execute("SELECT COUNT(*) FROM products WHERE quantity < 10")
+    low_stock = cur.fetchone()[0]
+    
+    cur.close()
+    conn.close()
+    
+    return jsonify({
         "total_products": total_products,
         "total_customers": total_customers,
         "total_orders": total_orders,
         "low_stock_products": low_stock
-    }
+    })
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8000)

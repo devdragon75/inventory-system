@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import api from '../api';
-import { Trash2, Edit } from 'lucide-react';
+import { api } from '../api';
 
 const Products = () => {
   const [products, setProducts] = useState([]);
@@ -12,8 +11,8 @@ const Products = () => {
 
   const fetchProducts = async () => {
     try {
-      const res = await api.get('/products');
-      setProducts(res.data);
+      const data = await api.get('/products');
+      setProducts(data);
     } catch (err) {
       setError('Failed to fetch products');
     } finally {
@@ -41,7 +40,7 @@ const Products = () => {
       setEditingId(null);
       fetchProducts();
     } catch (err) {
-      setError(err.response?.data?.detail || 'An error occurred');
+      setError(err.message || 'An error occurred');
     }
   };
 
@@ -63,30 +62,31 @@ const Products = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-800">Products</h1>
+    <div>
+      <h2>Products</h2>
       
-      {error && <div className="bg-red-50 text-red-600 p-3 rounded">{error}</div>}
-      {success && <div className="bg-green-50 text-green-600 p-3 rounded">{success}</div>}
+      {error && <div className="alert alert-error">{error}</div>}
+      {success && <div className="alert alert-success">{success}</div>}
 
-      <div className="bg-white p-6 rounded-xl shadow-sm">
-        <h2 className="text-lg font-semibold mb-4">{editingId ? 'Edit Product' : 'Add New Product'}</h2>
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input type="text" placeholder="Name" className="border p-2 rounded" required
+      <div className="card">
+        <h3>{editingId ? 'Edit Product' : 'Add New Product'}</h3>
+        <form onSubmit={handleSubmit} className="form-grid">
+          <input type="text" placeholder="Name" required
             value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-          <input type="text" placeholder="SKU" className="border p-2 rounded" required
+          <input type="text" placeholder="SKU" required
             value={formData.sku} onChange={e => setFormData({...formData, sku: e.target.value})} />
-          <input type="number" step="0.01" placeholder="Price" className="border p-2 rounded" required min="0.01"
+          <input type="number" step="0.01" placeholder="Price" required min="0.01"
             value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
-          <input type="number" placeholder="Quantity" className="border p-2 rounded" required min="0"
+          <input type="number" placeholder="Quantity" required min="0"
             value={formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value})} />
-          <div className="md:col-span-2 flex space-x-2">
-            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+          
+          <div style={{ gridColumn: '1 / -1' }}>
+            <button type="submit">
               {editingId ? 'Update Product' : 'Add Product'}
             </button>
             {editingId && (
               <button type="button" onClick={() => {setEditingId(null); setFormData({name:'', sku:'', price:'', quantity:''})}} 
-                className="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300">
+                style={{ background: '#6c757d', marginLeft: '10px' }}>
                 Cancel
               </button>
             )}
@@ -94,28 +94,28 @@ const Products = () => {
         </form>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 text-gray-600 text-sm">
+      <div className="card">
+        <table>
+          <thead>
             <tr>
-              <th className="p-4">Name</th>
-              <th className="p-4">SKU</th>
-              <th className="p-4">Price</th>
-              <th className="p-4">Stock</th>
-              <th className="p-4 text-right">Actions</th>
+              <th>Name</th>
+              <th>SKU</th>
+              <th>Price</th>
+              <th>Stock</th>
+              <th>Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y text-gray-800 text-sm">
-            {loading ? <tr><td colSpan="5" className="p-4 text-center">Loading...</td></tr> :
+          <tbody>
+            {loading ? <tr><td colSpan="5">Loading...</td></tr> :
               products.map(p => (
               <tr key={p.id}>
-                <td className="p-4">{p.name}</td>
-                <td className="p-4">{p.sku}</td>
-                <td className="p-4">${p.price.toFixed(2)}</td>
-                <td className="p-4">{p.quantity}</td>
-                <td className="p-4 flex justify-end space-x-2">
-                  <button onClick={() => handleEdit(p)} className="text-blue-600 hover:bg-blue-50 p-2 rounded"><Edit size={16}/></button>
-                  <button onClick={() => handleDelete(p.id)} className="text-red-600 hover:bg-red-50 p-2 rounded"><Trash2 size={16}/></button>
+                <td>{p.name}</td>
+                <td>{p.sku}</td>
+                <td>${Number(p.price).toFixed(2)}</td>
+                <td>{p.quantity}</td>
+                <td>
+                  <button onClick={() => handleEdit(p)} style={{ background: '#ffc107', color: 'black', marginRight: '5px' }}>Edit</button>
+                  <button onClick={() => handleDelete(p.id)} className="btn-danger">Delete</button>
                 </td>
               </tr>
             ))}
