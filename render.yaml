@@ -1,0 +1,24 @@
+services:
+  # The PostgreSQL Database
+  - type: psql
+    name: inventory-db
+    plan: free
+    region: ohio
+
+  # The FastAPI Backend
+  - type: web
+    name: inventory-backend
+    env: python
+    plan: free
+    region: ohio
+    buildCommand: |
+      cd backend
+      pip install -r requirements.txt
+    startCommand: |
+      cd backend
+      uvicorn main:app --host 0.0.0.0 --port 10000
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: inventory-db
+          property: connectionString

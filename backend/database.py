@@ -1,54 +1,16 @@
 import os
-import psycopg2
-from psycopg2.extras import RealDictCursor
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import declarative_base
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/inventory_db")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://user:password@db:5432/inventory_db")
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-def get_db_connection():
-    conn = psycopg2.connect(DATABASE_URL)
-    return conn
+engine = create_async_engine(DATABASE_URL, echo=False)
+AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
-def init_db():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS products (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            sku VARCHAR(100) UNIQUE NOT NULL,
-            price DECIMAL(10, 2) NOT NULL,
-            quantity INTEGER NOT NULL
-        )
-    ''')
-    
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS customers (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            email VARCHAR(255) UNIQUE NOT NULL,
-            phone VARCHAR(50)
-        )
-    ''')
-    
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS orders (
-            id SERIAL PRIMARY KEY,
-            customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
-            total_amount DECIMAL(10, 2) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS order_items (
-            id SERIAL PRIMARY KEY,
-            order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
-            product_id INTEGER REFERENCES products(id),
-            quantity INTEGER NOT NULL
-        )
-    ''')
-    
-    conn.commit()
-    cur.close()
-    conn.close()
+Base = declarative_base()
+
+async def get_db():
+    async with AsyncSessionLocal() as db:
+        yield db

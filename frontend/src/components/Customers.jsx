@@ -1,70 +1,102 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { api } from '../api';
+import { useQuery } from '../hooks/useQuery';
+
+const CustomerRow = React.memo(({ customer, onDelete }) => (
+  <tr>
+    <td>{customer.name}</td>
+    <td>{customer.email}</td>
+    <td>{customer.phone}</td>
+    <td>
+      <button onClick={() => onDelete(customer.id)} className="btn-danger">Delete</button>
+    </td>
+  </tr>
+));
 
 const Customers = () => {
-  const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const fetchCustomers = useCallback(() => api.get('/customers'), []);
+  const { data: customers = [], error: fetchError, loading, refetch } = useQuery(fetchCustomers);
+
   const [formData, setFormData] = useState({ name: '', email: '', phone: '' });
-  const [error, setError] = useState(null);
+  const [errors, setErrors] = useState({});
+  const [actionError, setActionError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  const fetchCustomers = async () => {
-    try {
-      const data = await api.get('/customers');
-      setCustomers(data);
-    } catch (err) {
-      setError('Failed to fetch customers');
-    } finally {
-      setLoading(false);
+  const validate = () => {
+    const newErrors = {};
+    if (!formData.name.trim()) newErrors.name = 'Name is required';
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Email is invalid';
     }
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone is required';
+    } else if (!/^\+?[\d\s-]{7,15}$/.test(formData.phone)) {
+      newErrors.phone = 'Phone format is invalid';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
-
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
+    if (!validate()) return;
+
+    setActionError(null);
     setSuccess(null);
     try {
       await api.post('/customers', formData);
       setSuccess('Customer added successfully');
       setFormData({ name: '', email: '', phone: '' });
-      fetchCustomers();
+      setErrors({});
+      refetch();
     } catch (err) {
-      setError(err.message || 'An error occurred');
+      setActionError(err.message || 'An error occurred');
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = useCallback(async (id) => {
     if (confirm('Are you sure you want to delete this customer?')) {
       try {
         await api.delete(`/customers/${id}`);
         setSuccess('Customer deleted');
-        fetchCustomers();
+        refetch();
       } catch (err) {
-        setError('Failed to delete customer');
+        setActionError('Failed to delete customer');
       }
     }
-  };
+  }, [refetch]);
+
+  if (fetchError) {
+    return <div className="alert alert-error">Failed to load customers: {fetchError.message}</div>;
+  }
 
   return (
     <div>
       <h2>Customers</h2>
       
-      {error && <div className="alert alert-error">{error}</div>}
+      {actionError && <div className="alert alert-error">{actionError}</div>}
       {success && <div className="alert alert-success">{success}</div>}
 
       <div className="card">
         <h3>Add New Customer</h3>
         <form onSubmit={handleSubmit} className="form-grid">
-          <input type="text" placeholder="Full Name" required
-            value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-          <input type="email" placeholder="Email" required
-            value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-          <input type="tel" placeholder="Phone" required
-            value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <input type="text" placeholder="Full Name"
+              value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+            {errors.name && <span style={{color:'red', fontSize:'12px', marginTop:'4px'}}>{errors.name}</span>}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <input type="email" placeholder="Email"
+              value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+            {errors.email && <span style={{color:'red', fontSize:'12px', marginTop:'4px'}}>{errors.email}</span>}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <input type="tel" placeholder="Phone"
+              value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+            {errors.phone && <span style={{color:'red', fontSize:'12px', marginTop:'4px'}}>{errors.phone}</span>}
+          </div>
           <div style={{ gridColumn: '1 / -1' }}>
             <button type="submit" style={{ background: '#28a745' }}>
               Add Customer
@@ -85,15 +117,8 @@ const Customers = () => {
           </thead>
           <tbody>
             {loading ? <tr><td colSpan="4">Loading...</td></tr> :
-              customers.map(c => (
-              <tr key={c.id}>
-                <td>{c.name}</td>
-                <td>{c.email}</td>
-                <td>{c.phone}</td>
-                <td>
-                  <button onClick={() => handleDelete(c.id)} className="btn-danger">Delete</button>
-                </td>
-              </tr>
+              (customers || []).map(c => (
+                <CustomerRow key={c.id} customer={c} onDelete={handleDelete} />
             ))}
           </tbody>
         </table>
