@@ -13,6 +13,7 @@ const Dashboard = () => {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lowStockThreshold, setLowStockThreshold] = useState(5);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -40,6 +41,7 @@ const Dashboard = () => {
   if (error) return <div className="alert alert-error">ERR: {error}</div>;
 
   const inventoryValue = products.reduce((acc, p) => acc + (p.price * p.quantity), 0);
+  const lowStockProducts = products.filter(p => p.quantity < lowStockThreshold).slice(0, 5);
   
   // Top Selling Products (for PieChart)
   const productSales = {};
@@ -100,6 +102,41 @@ const Dashboard = () => {
 
       <div className="chart-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', marginTop: '20px' }}>
         
+        {/* Low Stock Table */}
+        <div className="card" style={{ padding: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h3 style={{marginTop: 0, textTransform: 'uppercase', marginBottom: 0}}>Low Stock Products</h3>
+            <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              Min Stock:
+              <input 
+                type="number" 
+                value={lowStockThreshold} 
+                onChange={(e) => setLowStockThreshold(Math.max(1, parseInt(e.target.value) || 1))}
+                style={{ width: '60px', padding: '4px', fontSize: '12px' }}
+                min="1"
+              />
+            </label>
+          </div>
+          {lowStockProducts.length === 0 ? <p>No low stock products.</p> : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Quantity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lowStockProducts.map(p => (
+                  <tr key={p.id}>
+                    <td>{p.name}</td>
+                    <td style={{color: 'red', fontWeight: 'bold'}}>{p.quantity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
         {/* Recent Orders Table */}
         <div className="card" style={{ padding: '20px' }}>
           <h3 style={{marginTop: 0, textTransform: 'uppercase', marginBottom: '20px'}}>Recent Orders</h3>
