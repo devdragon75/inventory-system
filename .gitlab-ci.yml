@@ -1,0 +1,27 @@
+stages:
+  - build
+  - test
+
+frontend_build:
+  stage: build
+  image: node:20-alpine
+  script:
+    - cd frontend
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - frontend/dist/
+    expire_in: 1 hour
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - frontend/node_modules/
+
+backend_test:
+  stage: test
+  image: python:3.10-slim
+  script:
+    - cd backend
+    - pip install -r requirements.txt
+    # Add your pytest commands here
