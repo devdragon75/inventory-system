@@ -24,6 +24,7 @@ const Products = () => {
   const [errors, setErrors] = useState({});
   const [actionError, setActionError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const validate = () => {
     const newErrors = {};
@@ -99,6 +100,11 @@ const Products = () => {
     return <div className="alert alert-error">Failed to load products: {fetchError.message}</div>;
   }
 
+  const filteredProducts = (products || []).filter(p => 
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    p.sku.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div>
       <h2>Products</h2>
@@ -144,6 +150,16 @@ const Products = () => {
       </div>
 
       <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+          <h3 style={{ margin: 0 }}>Product List</h3>
+          <input 
+            type="text" 
+            placeholder="Search products..." 
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            style={{ width: '250px', padding: '8px', border: '1px solid #ccc' }}
+          />
+        </div>
         <table>
           <thead>
             <tr>
@@ -156,7 +172,7 @@ const Products = () => {
           </thead>
           <tbody>
             {loading ? <tr><td colSpan="5">Loading...</td></tr> :
-              (products || []).map(p => (
+              filteredProducts.map(p => (
                 <ProductRow 
                   key={p.id} 
                   product={p} 

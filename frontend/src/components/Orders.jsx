@@ -35,6 +35,7 @@ const Orders = () => {
   const [errors, setErrors] = useState({});
   const [actionError, setActionError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [filterTerm, setFilterTerm] = useState('');
 
   const handleAddItem = () => {
     setOrderItems([...orderItems, { product_id: '', quantity: 1 }]);
@@ -121,6 +122,12 @@ const Orders = () => {
     return <div className="alert alert-error">Failed to load orders data: {fetchError.message}</div>;
   }
 
+  const filteredOrders = (orders || []).filter(o => {
+    const customerName = customers.find(c => c.id === o.customer_id)?.name || 'Unknown';
+    const term = filterTerm.toLowerCase();
+    return o.id.toString().includes(term) || customerName.toLowerCase().includes(term);
+  });
+
   return (
     <div>
       <h2>Orders</h2>
@@ -185,6 +192,16 @@ const Orders = () => {
       </div>
 
       <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+          <h3 style={{ margin: 0 }}>Order History</h3>
+          <input 
+            type="text" 
+            placeholder="Filter by Order ID or Customer..." 
+            value={filterTerm}
+            onChange={e => setFilterTerm(e.target.value)}
+            style={{ width: '300px', padding: '8px', border: '1px solid #ccc' }}
+          />
+        </div>
         <table>
           <thead>
             <tr>
@@ -197,7 +214,7 @@ const Orders = () => {
           </thead>
           <tbody>
             {loading ? <tr><td colSpan="5">Loading...</td></tr> :
-              (orders || []).map(o => (
+              filteredOrders.map(o => (
                 <OrderRow 
                   key={o.id} 
                   order={o} 

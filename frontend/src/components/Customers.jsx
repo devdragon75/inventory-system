@@ -21,6 +21,7 @@ const Customers = () => {
   const [errors, setErrors] = useState({});
   const [actionError, setActionError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const validate = () => {
     const newErrors = {};
@@ -72,6 +73,12 @@ const Customers = () => {
     return <div className="alert alert-error">Failed to load customers: {fetchError.message}</div>;
   }
 
+  const filteredCustomers = (customers || []).filter(c => 
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.phone.includes(searchTerm)
+  );
+
   return (
     <div>
       <h2>Customers</h2>
@@ -106,6 +113,16 @@ const Customers = () => {
       </div>
 
       <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+          <h3 style={{ margin: 0 }}>Customer List</h3>
+          <input 
+            type="text" 
+            placeholder="Search customers..." 
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            style={{ width: '250px', padding: '8px', border: '1px solid #ccc' }}
+          />
+        </div>
         <table>
           <thead>
             <tr>
@@ -117,7 +134,7 @@ const Customers = () => {
           </thead>
           <tbody>
             {loading ? <tr><td colSpan="4">Loading...</td></tr> :
-              (customers || []).map(c => (
+              filteredCustomers.map(c => (
                 <CustomerRow key={c.id} customer={c} onDelete={handleDelete} />
             ))}
           </tbody>
