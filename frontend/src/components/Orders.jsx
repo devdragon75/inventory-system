@@ -2,13 +2,14 @@ import React, { useState, useCallback } from 'react';
 import { api } from '../api';
 import { useQuery } from '../hooks/useQuery';
 
-const OrderRow = React.memo(({ order, customerName, onDelete }) => (
+const OrderRow = React.memo(({ order, customerName, onDelete, onView }) => (
   <tr>
     <td><strong>#{order.id}</strong></td>
     <td>{customerName}</td>
     <td>₹{Number(order.total_amount).toFixed(2)}</td>
     <td>{new Date(order.created_at).toLocaleDateString()}</td>
     <td>
+      <button onClick={() => onView(order)} style={{ marginRight: '5px', background: '#0dcaf0', color: 'black' }}>View</button>
       <button onClick={() => onDelete(order.id)} className="btn-danger">Delete</button>
     </td>
   </tr>
@@ -29,6 +30,7 @@ const Orders = () => {
 
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [orderItems, setOrderItems] = useState([{ product_id: '', quantity: 1 }]);
+  const [viewingOrder, setViewingOrder] = useState(null);
   
   const [errors, setErrors] = useState({});
   const [actionError, setActionError] = useState(null);
@@ -201,11 +203,61 @@ const Orders = () => {
                   order={o} 
                   customerName={customers.find(c => c.id === o.customer_id)?.name || 'Unknown'} 
                   onDelete={handleDelete} 
+                  onView={(order) => setViewingOrder(order)}
                 />
             ))}
           </tbody>
         </table>
       </div>
+
+      {viewingOrder && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="card" style={{ width: '500px', maxWidth: '90%', position: 'relative', margin: 0 }}>
+            <button onClick={() => setViewingOrder(null)} style={{ position: 'absolute', right: '15px', top: '15px', background: 'transparent', color: '#111', border: 'none', fontSize: '24px', cursor: 'pointer', padding: 0, lineHeight: 1 }}>&times;</button>
+            <h3 style={{ marginTop: 0, textTransform: 'uppercase' }}>Order #{viewingOrder.id}</h3>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <p style={{ margin: '5px 0' }}><strong>Customer:</strong> {customers.find(c => c.id === viewingOrder.customer_id)?.name || 'Unknown'}</p>
+              <p style={{ margin: '5px 0' }}><strong>Date:</strong> {new Date(viewingOrder.created_at).toLocaleString()}</p>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Qty</th>
+                  <th style={{ textAlign: 'right' }}>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(viewingOrder.items || []).map(item => {
+                  const p = products.find(prod => prod.id === item.product_id);
+                  return (
+                    <tr key={item.id}>
+                      <td>{p ? p.name : `Product ID ${item.product_id}`}</td>
+                      <td>{item.quantity}</td>
+                      <td style={{ textAlign: 'right' }}>₹{p ? (p.price * item.quantity).toFixed(2) : '-'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th colSpan="2" style={{ textAlign: 'right', borderTop: '2px solid #111' }}>Total:</th>
+                  <th style={{ textAlign: 'right', borderTop: '2px solid #111' }}>₹{Number(viewingOrder.total_amount).toFixed(2)}</th>
+                </tr>
+              </tfoot>
+            </table>
+            
+            <div style={{ marginTop: '20px', textAlign: 'right' }}>
+              <button onClick={() => setViewingOrder(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
