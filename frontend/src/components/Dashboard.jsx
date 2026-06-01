@@ -4,7 +4,7 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
 } from 'recharts';
 
-const COLORS = ['#111111', '#444444', '#777777', '#aaaaaa', '#dddddd'];
+const COLORS = ['#6f42c1', '#0dcaf0', '#ffc107', '#20c997', '#fd7e14'];
 
 const Dashboard = () => {
   const [summary, setSummary] = useState(null);
@@ -81,20 +81,20 @@ const Dashboard = () => {
       </h2>
       
       <div className="dashboard-grid">
-        <div className="card stat-card">
-          <h3>Total Products</h3>
+        <div className="card stat-card" style={{ background: 'linear-gradient(135deg, #6f42c1 0%, #8960db 100%)', color: 'white', border: 'none' }}>
+          <h3 style={{ color: 'white', borderBottom: '1px solid rgba(255,255,255,0.3)' }}>Total Products</h3>
           <p>{summary?.total_products}</p>
         </div>
-        <div className="card stat-card">
-          <h3>Total Orders</h3>
+        <div className="card stat-card" style={{ background: 'linear-gradient(135deg, #0dcaf0 0%, #4ddbf4 100%)', color: '#111', border: 'none' }}>
+          <h3 style={{ color: '#111', borderBottom: '1px solid rgba(0,0,0,0.2)' }}>Total Orders</h3>
           <p>{summary?.total_orders}</p>
         </div>
-        <div className="card stat-card">
-          <h3>Total Customers</h3>
+        <div className="card stat-card" style={{ background: 'linear-gradient(135deg, #20c997 0%, #4ddbb3 100%)', color: 'white', border: 'none' }}>
+          <h3 style={{ color: 'white', borderBottom: '1px solid rgba(255,255,255,0.3)' }}>Total Customers</h3>
           <p>{summary?.total_customers}</p>
         </div>
-        <div className="card stat-card">
-          <h3>Inventory Value</h3>
+        <div className="card stat-card" style={{ background: 'linear-gradient(135deg, #fd7e14 0%, #fdb074 100%)', color: 'white', border: 'none' }}>
+          <h3 style={{ color: 'white', borderBottom: '1px solid rgba(255,255,255,0.3)' }}>Inventory Value</h3>
           <p>₹{inventoryValue.toFixed(2)}</p>
         </div>
       </div>
@@ -179,7 +179,7 @@ const Dashboard = () => {
                   <XAxis dataKey="name" tick={{fontFamily: 'Space Mono', fontSize: 12}} />
                   <YAxis tick={{fontFamily: 'Space Mono', fontSize: 12}} />
                   <RechartsTooltip contentStyle={{fontFamily: 'Space Mono', borderRadius: 0, border: '2px solid #111'}} />
-                  <Bar dataKey="orders" fill="#111" />
+                  <Bar dataKey="orders" fill="#6f42c1" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
