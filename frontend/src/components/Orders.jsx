@@ -152,8 +152,11 @@ const Orders = () => {
                       <option key={p.id} value={p.id}>{p.name} - ₹{Number(p.price).toFixed(2)} ({p.quantity} in stock)</option>
                     ))}
                   </select>
-                  <input type="number" placeholder="Qty" style={{ width: '80px' }}
-                    value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} />
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 'bold' }}>Qty:</span>
+                    <input type="number" placeholder="Qty" style={{ width: '80px' }}
+                      value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} />
+                  </label>
                   {orderItems.length > 1 && (
                     <button type="button" onClick={() => handleRemoveItem(index)} className="btn-danger">
                       X
