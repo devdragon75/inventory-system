@@ -1,0 +1,87 @@
+project:
+  name: "Inventory & Order Management System"
+  description: "A production-ready full-stack web application designed for the efficient tracking of products, customers, and orders. Features real-time inventory deduction, robust data validation, and an analytical dashboard."
+  
+  architecture:
+    frontend:
+      framework: "React (Vite)"
+      routing: "react-router-dom"
+      styling: "Vanilla CSS with modern gradients, flexbox/grid layouts, and responsive design."
+      icons: "react-icons (Feather icons: FiPieChart, FiBox, FiUsers, FiShoppingCart)"
+      data_fetching: "Custom 'useQuery' hook wrapping native fetch calls to the backend API."
+      hosting: "Vercel (optimized with vercel.json for SPA routing fallbacks)"
+      components:
+        Dashboard:
+          description: "High-level overview containing KPI cards, recent orders, and graphical reports."
+          features:
+            - "Dynamic KPI Cards (Total Products, Orders, Customers, Inventory Value)"
+            - "Visual Analytics: Donut chart for Top Selling Products, Bar chart for Top Buyers (using Recharts)"
+            - "Configurable Low Stock Alert: Table displaying low stock items with a user-adjustable minimum threshold."
+        Products:
+          description: "Inventory management interface."
+          features:
+            - "Real-time search filtering by Name or SKU."
+            - "CRUD operations to Add, Edit, and Delete products."
+        Customers:
+          description: "Client directory management."
+          features:
+            - "Real-time search filtering by Name, Email, or Phone."
+            - "CRUD operations to Add and Delete customers."
+        Orders:
+          description: "Order orchestration interface, refactored using SOLID principles."
+          sub_components:
+            - OrderForm: "Handles complex form state, validation, and multi-item selection for creating new orders."
+            - OrderDetailsModal: "Displays an invoice-style popup with granular item breakdowns and subtotals."
+            - OrderList: "Displays a chronological history of orders with text-based filtering by Order ID or Customer Name."
+
+    backend:
+      framework: "FastAPI (Python)"
+      database_orm: "SQLAlchemy (Async engine for high concurrency)"
+      database_driver: "asyncpg (PostgreSQL)"
+      hosting: "Render (Dockerized deployment)"
+      design_pattern: "Repository-Service-Router Architecture (Clean Code methodology)"
+      layers:
+        router: "router.py - FastAPI endpoints handling HTTP request routing and response serialization."
+        service: "service.py - Business logic layer. Handles validation, aggregate calculations, and orchestration (e.g., ensuring inventory exists before order creation)."
+        repository: "repository.py - Data access layer. Strictly handles async SQLAlchemy queries to isolate database interactions."
+        schemas: "schemas.py - Pydantic models for strict request validation (e.g., ensuring non-negative prices/quantities) and response typing."
+        models: "models.py - SQLAlchemy declarative base models mapping Python classes to database tables."
+
+  database_schema:
+    tables:
+      products:
+        description: "Stores inventory items."
+        columns:
+          id: "Integer, Primary Key"
+          name: "String(255), Not Null"
+          sku: "String(100), Unique, Indexed, Not Null"
+          price: "Float, Not Null, >= 0"
+          quantity: "Integer, Not Null, >= 0"
+      customers:
+        description: "Stores client details."
+        columns:
+          id: "Integer, Primary Key"
+          name: "String(255), Not Null"
+          email: "String(255), Unique, Indexed, Not Null (Regex Validated)"
+          phone: "String(50)"
+      orders:
+        description: "Stores high-level order records."
+        columns:
+          id: "Integer, Primary Key"
+          customer_id: "Integer, Foreign Key (customers.id), Cascade Delete"
+          total_amount: "Float, Not Null"
+          created_at: "DateTime, Default UTC Now"
+        relationships:
+          items: "One-to-Many relationship with order_items"
+      order_items:
+        description: "Stores line items for specific orders."
+        columns:
+          id: "Integer, Primary Key"
+          order_id: "Integer, Foreign Key (orders.id), Cascade Delete"
+          product_id: "Integer, Foreign Key (products.id)"
+          quantity: "Integer, Not Null"
+
+  business_logic_highlights:
+    - inventory_management: "When an order is created, the backend automatically calculates the total quantities required across duplicate line items and deducts them from the products table. Deleting an order restores the inventory."
+    - data_integrity: "Pydantic ensures prices and quantities cannot be negative. SQLAlchemy relationships ensure that deleting a customer or order cascades properly to prevent orphaned records."
+    - search_and_filter: "Search operations are executed client-side via computed React state variables, providing instantaneous feedback without overloading the backend API."
