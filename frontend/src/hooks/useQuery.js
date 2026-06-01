@@ -19,10 +19,22 @@ export function useQuery(fetcher, dependencies = []) {
   }, [fetcher]);
 
   useEffect(() => {
-    refetch();
-    // We intentionally don't put dependencies array directly into useEffect
-    // The user should wrap the fetcher in useCallback if it depends on changing values.
-    // We add dependencies here just in case simple primitive arrays are passed.
+    let ignore = false;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await fetcher();
+        if (!ignore) setData(result);
+      } catch (err) {
+        if (!ignore) setError(err);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    };
+    load();
+    return () => { ignore = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, dependencies);
 
   return { data, error, loading, refetch };
