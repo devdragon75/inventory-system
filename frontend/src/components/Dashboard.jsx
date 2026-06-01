@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
+import {
+  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
+} from 'recharts';
+
+const COLORS = ['#111111', '#444444', '#777777', '#aaaaaa', '#dddddd'];
 
 const Dashboard = () => {
   const [summary, setSummary] = useState(null);
@@ -37,7 +42,7 @@ const Dashboard = () => {
   const inventoryValue = products.reduce((acc, p) => acc + (p.price * p.quantity), 0);
   const lowStockProducts = products.filter(p => p.quantity < 10).slice(0, 5);
   
-  // Top Selling Products
+  // Top Selling Products (for PieChart)
   const productSales = {};
   orders.forEach(o => {
     (o.items || []).forEach(item => {
@@ -49,10 +54,10 @@ const Dashboard = () => {
     .slice(0, 5)
     .map(([id, qty]) => {
       const p = products.find(p => p.id === parseInt(id));
-      return { name: p ? p.name : `Product #${id}`, sold: qty };
+      return { name: p ? p.name : `Product #${id}`, value: qty };
     });
 
-  // Customer Report (Customers with most orders)
+  // Customer Report (Customers with most orders, for BarChart)
   const customerOrderCount = {};
   orders.forEach(o => {
     customerOrderCount[o.customer_id] = (customerOrderCount[o.customer_id] || 0) + 1;
@@ -62,8 +67,12 @@ const Dashboard = () => {
     .slice(0, 5)
     .map(([id, count]) => {
       const c = customers.find(c => c.id === parseInt(id));
-      return { name: c ? c.name : `Customer #${id}`, orders: count };
+      // Using first name for cleaner chart labels
+      return { name: c ? c.name.split(' ')[0] : `ID ${id}`, orders: count };
     });
+
+  // Recent Orders (last 5 orders)
+  const recentOrders = [...orders].reverse().slice(0, 5);
 
   return (
     <div>
@@ -90,7 +99,9 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="chart-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', marginTop: '20px' }}>
+      <div className="chart-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', marginTop: '20px' }}>
+        
+        {/* Low Stock Table */}
         <div className="card" style={{ padding: '20px' }}>
           <h3 style={{marginTop: 0, textTransform: 'uppercase', marginBottom: '20px'}}>Low Stock Products</h3>
           {lowStockProducts.length === 0 ? <p>No low stock products.</p> : (
@@ -113,21 +124,24 @@ const Dashboard = () => {
           )}
         </div>
 
+        {/* Recent Orders Table */}
         <div className="card" style={{ padding: '20px' }}>
-          <h3 style={{marginTop: 0, textTransform: 'uppercase', marginBottom: '20px'}}>Top Selling Products</h3>
-          {topSellingProducts.length === 0 ? <p>No sales yet.</p> : (
+          <h3 style={{marginTop: 0, textTransform: 'uppercase', marginBottom: '20px'}}>Recent Orders</h3>
+          {recentOrders.length === 0 ? <p>No orders yet.</p> : (
             <table>
               <thead>
                 <tr>
-                  <th>Product</th>
-                  <th>Units Sold</th>
+                  <th>ID</th>
+                  <th>Customer</th>
+                  <th>Total</th>
                 </tr>
               </thead>
               <tbody>
-                {topSellingProducts.map((p, i) => (
-                  <tr key={i}>
-                    <td>{p.name}</td>
-                    <td>{p.sold}</td>
+                {recentOrders.map(o => (
+                  <tr key={o.id}>
+                    <td>#{o.id}</td>
+                    <td>{customers.find(c => c.id === o.customer_id)?.name || 'Unknown'}</td>
+                    <td>₹{Number(o.total_amount).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -135,27 +149,43 @@ const Dashboard = () => {
           )}
         </div>
 
+        {/* Top Selling Products - Donut Chart */}
         <div className="card" style={{ padding: '20px' }}>
-          <h3 style={{marginTop: 0, textTransform: 'uppercase', marginBottom: '20px'}}>Customer Report (Top Buyers)</h3>
-          {topCustomers.length === 0 ? <p>No customers with orders yet.</p> : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Customer</th>
-                  <th>Total Orders</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topCustomers.map((c, i) => (
-                  <tr key={i}>
-                    <td>{c.name}</td>
-                    <td>{c.orders}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <h3 style={{marginTop: 0, textTransform: 'uppercase', marginBottom: '20px'}}>Top Selling Products</h3>
+          {topSellingProducts.length === 0 ? <p>No sales yet.</p> : (
+            <div style={{ width: '100%', height: 250 }}>
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie data={topSellingProducts} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} fill="#111" label>
+                    {topSellingProducts.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip contentStyle={{fontFamily: 'Space Mono', borderRadius: 0, border: '2px solid #111'}} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           )}
         </div>
+
+        {/* Customer Report - Bar Chart */}
+        <div className="card" style={{ padding: '20px' }}>
+          <h3 style={{marginTop: 0, textTransform: 'uppercase', marginBottom: '20px'}}>Customer Report</h3>
+          {topCustomers.length === 0 ? <p>No customers with orders yet.</p> : (
+            <div style={{ width: '100%', height: 250 }}>
+              <ResponsiveContainer>
+                <BarChart data={topCustomers} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ccc" />
+                  <XAxis dataKey="name" tick={{fontFamily: 'Space Mono', fontSize: 12}} />
+                  <YAxis tick={{fontFamily: 'Space Mono', fontSize: 12}} />
+                  <RechartsTooltip contentStyle={{fontFamily: 'Space Mono', borderRadius: 0, border: '2px solid #111'}} />
+                  <Bar dataKey="orders" fill="#111" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   );
