@@ -6,15 +6,10 @@ databases:
 services:
   - type: web
     name: inventory-backend
-    env: python
+    env: docker
     plan: free
     region: ohio
-    buildCommand: |
-      cd backend
-      pip install -r requirements.txt
-    startCommand: |
-      cd backend
-      uvicorn main:app --host 0.0.0.0 --port 10000
+    rootDir: backend
     envVars:
       - key: DATABASE_URL
         fromDatabase:
