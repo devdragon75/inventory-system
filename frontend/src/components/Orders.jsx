@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { api } from '../api';
 import { useQuery } from '../hooks/useQuery';
+import { FiEye, FiTrash2, FiX } from 'react-icons/fi';
 
 const OrderRow = React.memo(({ order, customerName, onDelete, onView }) => (
   <tr>
@@ -8,9 +9,13 @@ const OrderRow = React.memo(({ order, customerName, onDelete, onView }) => (
     <td>{customerName}</td>
     <td>₹{Number(order.total_amount).toFixed(2)}</td>
     <td>{new Date(order.created_at).toLocaleDateString()}</td>
-    <td>
-      <button onClick={() => onView(order)} style={{ marginRight: '5px', background: '#0dcaf0', color: 'black' }}>View</button>
-      <button onClick={() => onDelete(order.id)} className="btn-danger">Delete</button>
+    <td style={{ display: 'flex', gap: '5px' }}>
+      <button onClick={() => onView(order)} style={{ background: '#0dcaf0', color: 'black', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="View">
+        <FiEye />
+      </button>
+      <button onClick={() => onDelete(order.id)} className="btn-danger" style={{ padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Delete">
+        <FiTrash2 />
+      </button>
     </td>
   </tr>
 ));
@@ -167,8 +172,8 @@ const Orders = () => {
                       value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} />
                   </label>
                   {orderItems.length > 1 && (
-                    <button type="button" onClick={() => handleRemoveItem(index)} className="btn-danger">
-                      X
+                    <button type="button" onClick={() => handleRemoveItem(index)} className="btn-danger" style={{ padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Remove Item">
+                      <FiX />
                     </button>
                   )}
                 </div>

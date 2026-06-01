@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { api } from '../api';
 import { useQuery } from '../hooks/useQuery';
+import { FiTrash2 } from 'react-icons/fi';
 
 const CustomerRow = React.memo(({ customer, onDelete }) => (
   <tr>
@@ -8,7 +9,9 @@ const CustomerRow = React.memo(({ customer, onDelete }) => (
     <td>{customer.email}</td>
     <td>{customer.phone}</td>
     <td>
-      <button onClick={() => onDelete(customer.id)} className="btn-danger">Delete</button>
+      <button onClick={() => onDelete(customer.id)} className="btn-danger" style={{ padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Delete">
+        <FiTrash2 />
+      </button>
     </td>
   </tr>
 ));

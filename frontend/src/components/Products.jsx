@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { api } from '../api';
 import { useQuery } from '../hooks/useQuery';
+import { FiEdit, FiTrash2 } from 'react-icons/fi';
 
 const ProductRow = React.memo(({ product, onEdit, onDelete }) => (
   <tr>
@@ -8,9 +9,13 @@ const ProductRow = React.memo(({ product, onEdit, onDelete }) => (
     <td>{product.sku}</td>
     <td>₹{Number(product.price).toFixed(2)}</td>
     <td>{product.quantity}</td>
-    <td>
-      <button onClick={() => onEdit(product)} style={{ background: '#ffc107', color: 'black', marginRight: '5px' }}>Edit</button>
-      <button onClick={() => onDelete(product.id)} className="btn-danger">Delete</button>
+    <td style={{ display: 'flex', gap: '5px' }}>
+      <button onClick={() => onEdit(product)} style={{ background: '#ffc107', color: 'black', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Edit">
+        <FiEdit />
+      </button>
+      <button onClick={() => onDelete(product.id)} className="btn-danger" style={{ padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Delete">
+        <FiTrash2 />
+      </button>
     </td>
   </tr>
 ));

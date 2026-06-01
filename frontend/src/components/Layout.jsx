@@ -1,13 +1,14 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
+import { FiPieChart, FiBox, FiUsers, FiShoppingCart } from 'react-icons/fi';
 
 const Layout = () => {
   const location = useLocation();
   
   const navItems = [
-    { path: '/', label: '📊 Dashboard' },
-    { path: '/products', label: '📦 Products' },
-    { path: '/customers', label: '👥 Customers' },
-    { path: '/orders', label: '🛒 Orders' },
+    { path: '/', label: 'Dashboard', icon: <FiPieChart /> },
+    { path: '/products', label: 'Products', icon: <FiBox /> },
+    { path: '/customers', label: 'Customers', icon: <FiUsers /> },
+    { path: '/orders', label: 'Orders', icon: <FiShoppingCart /> },
   ];
 
   return (
@@ -23,6 +24,7 @@ const Layout = () => {
               to={item.path}
               className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
             >
+              <span style={{ marginRight: '10px', fontSize: '18px', display: 'flex', alignItems: 'center' }}>{item.icon}</span>
               {item.label}
             </Link>
           ))}
