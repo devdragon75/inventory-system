@@ -6,7 +6,7 @@ const OrderRow = React.memo(({ order, customerName, onDelete }) => (
   <tr>
     <td><strong>#{order.id}</strong></td>
     <td>{customerName}</td>
-    <td>${Number(order.total_amount).toFixed(2)}</td>
+    <td>₹{Number(order.total_amount).toFixed(2)}</td>
     <td>{new Date(order.created_at).toLocaleDateString()}</td>
     <td>
       <button onClick={() => onDelete(order.id)} className="btn-danger">Delete</button>
@@ -149,7 +149,7 @@ const Orders = () => {
                     value={item.product_id} onChange={e => handleItemChange(index, 'product_id', e.target.value)}>
                     <option value="">Select Product</option>
                     {products.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} - ${Number(p.price).toFixed(2)} ({p.quantity} in stock)</option>
+                      <option key={p.id} value={p.id}>{p.name} - ₹{Number(p.price).toFixed(2)} ({p.quantity} in stock)</option>
                     ))}
                   </select>
                   <input type="number" placeholder="Qty" style={{ width: '80px' }}

@@ -2,11 +2,13 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
+from pydantic import BaseModel, Field
+
 class ProductBase(BaseModel):
     name: str
     sku: str
-    price: float
-    quantity: int
+    price: float = Field(ge=0.0)
+    quantity: int = Field(ge=0)
 
 class ProductCreate(ProductBase):
     pass

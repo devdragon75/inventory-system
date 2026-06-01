@@ -6,7 +6,7 @@ const ProductRow = React.memo(({ product, onEdit, onDelete }) => (
   <tr>
     <td>{product.name}</td>
     <td>{product.sku}</td>
-    <td>${Number(product.price).toFixed(2)}</td>
+    <td>₹{Number(product.price).toFixed(2)}</td>
     <td>{product.quantity}</td>
     <td>
       <button onClick={() => onEdit(product)} style={{ background: '#ffc107', color: 'black', marginRight: '5px' }}>Edit</button>
