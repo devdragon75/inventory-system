@@ -1,7 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import { api } from '../api';
 import { useQuery } from '../hooks/useQuery';
-import { FiEye, FiTrash2, FiX } from 'react-icons/fi';
+import { FiEye, FiTrash2 } from 'react-icons/fi';
+import OrderForm from './OrderForm';
+import OrderDetailsModal from './OrderDetailsModal';
 
 const OrderRow = React.memo(({ order, customerName, onDelete, onView }) => (
   <tr>
@@ -33,92 +35,32 @@ const Orders = () => {
   const { data, error: fetchError, loading, refetch } = useQuery(fetchAllData);
   const { orders = [], products = [], customers = [] } = data || {};
 
-  const [selectedCustomer, setSelectedCustomer] = useState('');
-  const [orderItems, setOrderItems] = useState([{ product_id: '', quantity: 1 }]);
   const [viewingOrder, setViewingOrder] = useState(null);
-  
-  const [errors, setErrors] = useState({});
   const [actionError, setActionError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [filterTerm, setFilterTerm] = useState('');
 
-  const handleAddItem = () => {
-    setOrderItems([...orderItems, { product_id: '', quantity: 1 }]);
-  };
-
-  const handleItemChange = (index, field, value) => {
-    const newItems = [...orderItems];
-    newItems[index][field] = value;
-    setOrderItems(newItems);
-  };
-
-  const handleRemoveItem = (index) => {
-    const newItems = orderItems.filter((_, i) => i !== index);
-    setOrderItems(newItems);
-  };
-
-  const validate = () => {
-    const newErrors = {};
-    if (!selectedCustomer) {
-      newErrors.customer = 'Please select a customer';
-    }
-    
-    const itemsErrors = {};
-    let hasItemErrors = false;
-    
-    orderItems.forEach((item, index) => {
-      itemsErrors[index] = {};
-      if (!item.product_id) {
-        itemsErrors[index].product_id = 'Please select a product';
-        hasItemErrors = true;
-      }
-      if (isNaN(parseInt(item.quantity)) || parseInt(item.quantity) < 1) {
-        itemsErrors[index].quantity = 'Quantity must be at least 1';
-        hasItemErrors = true;
-      }
-    });
-
-    if (hasItemErrors) {
-      newErrors.items = itemsErrors;
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validate()) return;
-
+  const handleOrderSuccess = (message) => {
+    setSuccess(message);
     setActionError(null);
+    refetch();
+  };
+
+  const handleOrderError = (message) => {
+    setActionError(message);
     setSuccess(null);
-    try {
-      const payload = {
-        customer_id: parseInt(selectedCustomer),
-        items: orderItems.map(item => ({
-          product_id: parseInt(item.product_id),
-          quantity: parseInt(item.quantity)
-        }))
-      };
-      await api.post('/orders', payload);
-      setSuccess('Order created successfully');
-      setSelectedCustomer('');
-      setOrderItems([{ product_id: '', quantity: 1 }]);
-      setErrors({});
-      refetch();
-    } catch (err) {
-      setActionError(err.message || 'An error occurred');
-    }
   };
 
   const handleDelete = useCallback(async (id) => {
     if (confirm('Are you sure you want to delete this order? (Inventory will be restored)')) {
       try {
         await api.delete(`/orders/${id}`);
-        setSuccess('Order deleted');
+        setSuccess('Order deleted successfully');
+        setActionError(null);
         refetch();
       } catch (err) {
         setActionError('Failed to delete order');
+        setSuccess(null);
       }
     }
   }, [refetch]);
@@ -140,61 +82,12 @@ const Orders = () => {
       {actionError && <div className="alert alert-error">{actionError}</div>}
       {success && <div className="alert alert-success">{success}</div>}
 
-      <div className="card">
-        <h3>Create New Order</h3>
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '5px' }}>Customer</label>
-            <select value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)}>
-              <option value="">Select a Customer</option>
-              {customers.map(c => (
-                <option key={c.id} value={c.id}>{c.name} ({c.email})</option>
-              ))}
-            </select>
-            {errors.customer && <span style={{color:'red', fontSize:'12px', display:'block', marginTop:'4px'}}>{errors.customer}</span>}
-          </div>
-          
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '5px' }}>Order Items</label>
-            {orderItems.map((item, index) => (
-              <div key={index} style={{ marginBottom: '10px' }}>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <select style={{ flex: 1 }}
-                    value={item.product_id} onChange={e => handleItemChange(index, 'product_id', e.target.value)}>
-                    <option value="">Select Product</option>
-                    {products.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} - ₹{Number(p.price).toFixed(2)} ({p.quantity} in stock)</option>
-                    ))}
-                  </select>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span style={{ fontSize: '14px', fontWeight: 'bold' }}>Qty:</span>
-                    <input type="number" placeholder="Qty" style={{ width: '80px' }}
-                      value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} />
-                  </label>
-                  {orderItems.length > 1 && (
-                    <button type="button" onClick={() => handleRemoveItem(index)} className="btn-danger" style={{ padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Remove Item">
-                      <FiX />
-                    </button>
-                  )}
-                </div>
-                {errors.items && errors.items[index] && (
-                  <div style={{color:'red', fontSize:'12px', marginTop:'4px'}}>
-                    {errors.items[index].product_id && <span>{errors.items[index].product_id} </span>}
-                    {errors.items[index].quantity && <span>{errors.items[index].quantity}</span>}
-                  </div>
-                )}
-              </div>
-            ))}
-            <button type="button" onClick={handleAddItem} style={{ background: 'none', color: '#0056b3', border: 'none', padding: 0, textDecoration: 'underline', marginTop: '10px' }}>
-              + Add another product
-            </button>
-          </div>
-
-          <button type="submit" style={{ background: '#6f42c1' }}>
-            Create Order
-          </button>
-        </form>
-      </div>
+      <OrderForm 
+        customers={customers} 
+        products={products} 
+        onSuccess={handleOrderSuccess} 
+        onError={handleOrderError} 
+      />
 
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
@@ -232,54 +125,12 @@ const Orders = () => {
         </table>
       </div>
 
-      {viewingOrder && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-        }}>
-          <div className="card" style={{ width: '500px', maxWidth: '90%', position: 'relative', margin: 0 }}>
-            <button onClick={() => setViewingOrder(null)} style={{ position: 'absolute', right: '15px', top: '15px', background: 'transparent', color: '#111', border: 'none', fontSize: '24px', cursor: 'pointer', padding: 0, lineHeight: 1 }}>&times;</button>
-            <h3 style={{ marginTop: 0, textTransform: 'uppercase' }}>Order #{viewingOrder.id}</h3>
-            
-            <div style={{ marginBottom: '20px' }}>
-              <p style={{ margin: '5px 0' }}><strong>Customer:</strong> {customers.find(c => c.id === viewingOrder.customer_id)?.name || 'Unknown'}</p>
-              <p style={{ margin: '5px 0' }}><strong>Date:</strong> {new Date(viewingOrder.created_at).toLocaleString()}</p>
-            </div>
-
-            <table>
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Qty</th>
-                  <th style={{ textAlign: 'right' }}>Subtotal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(viewingOrder.items || []).map(item => {
-                  const p = products.find(prod => prod.id === item.product_id);
-                  return (
-                    <tr key={item.id}>
-                      <td>{p ? p.name : `Product ID ${item.product_id}`}</td>
-                      <td>{item.quantity}</td>
-                      <td style={{ textAlign: 'right' }}>₹{p ? (p.price * item.quantity).toFixed(2) : '-'}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <th colSpan="2" style={{ textAlign: 'right', borderTop: '2px solid #111' }}>Total:</th>
-                  <th style={{ textAlign: 'right', borderTop: '2px solid #111' }}>₹{Number(viewingOrder.total_amount).toFixed(2)}</th>
-                </tr>
-              </tfoot>
-            </table>
-            
-            <div style={{ marginTop: '20px', textAlign: 'right' }}>
-              <button onClick={() => setViewingOrder(null)}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <OrderDetailsModal 
+        order={viewingOrder}
+        customers={customers}
+        products={products}
+        onClose={() => setViewingOrder(null)}
+      />
     </div>
   );
 };
