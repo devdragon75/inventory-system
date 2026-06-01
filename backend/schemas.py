@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
@@ -17,10 +17,21 @@ class Product(ProductBase):
     class Config:
         from_attributes = True
 
+import re
+from pydantic import BaseModel, field_validator
+
 class CustomerBase(BaseModel):
     name: str
-    email: EmailStr
+    email: str
     phone: Optional[str] = None
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        email_regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+        if not re.match(email_regex, v):
+            raise ValueError('Invalid email address format')
+        return v
 
 class CustomerCreate(CustomerBase):
     pass
